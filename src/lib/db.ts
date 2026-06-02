@@ -21,11 +21,13 @@ const KV_TOKEN = process.env.KV_REST_API_TOKEN;
 
 let writeQueue = Promise.resolve();
 
-// Track Supabase health dynamically
-let isSupabaseHealthy = true;
-
 function checkSupabase(): boolean {
-  return !!supabase && isSupabaseHealthy;
+  // Supabase is the source of truth whenever it is configured. We intentionally
+  // do NOT latch into a "use local file instead" mode on a transient error:
+  // on Vercel the local file is an empty per-instance tmp file, so falling back
+  // makes live rooms vanish mid-auction ("Room not found") and silently drops
+  // bids. A transient error should surface (and be retried), not corrupt state.
+  return !!supabase;
 }
 
 // MD5 based deterministic UUIDs for mapping
@@ -142,8 +144,8 @@ export async function readDb(): Promise<Record<string, ServerRoom>> {
       }
       return db;
     } catch (e) {
-      console.warn('⚠️ Supabase readDb failed, falling back to local file DB:', e);
-      isSupabaseHealthy = false;
+      console.error('Supabase readDb failed:', e);
+      throw e; // don't return empty local data while Supabase is the source of truth
     }
   }
 
@@ -281,12 +283,12 @@ export async function getRoom(roomId: string): Promise<ServerRoom | null> {
         })) as any,
       } as ServerRoom;
     } catch (e) {
-      console.warn('⚠️ Supabase getRoom failed, falling back to local file DB:', e);
-      isSupabaseHealthy = false;
+      console.error('Supabase getRoom failed:', e);
+      throw e; // surface transient errors instead of returning a phantom "not found"
     }
   }
 
-  // Local File Database Fallback
+  // Local File Database Fallback (only when Supabase is NOT configured)
   const db = await localReadDb();
   return db[roomId.toUpperCase()] || null;
 }
@@ -425,12 +427,12 @@ export async function saveRoom(room: ServerRoom): Promise<void> {
       }
       return;
     } catch (e) {
-      console.warn('⚠️ Supabase saveRoom failed, falling back to local file DB:', e);
-      isSupabaseHealthy = false;
+      console.error('Supabase saveRoom failed:', e);
+      throw e; // don't silently write to an empty per-instance tmp file
     }
   }
 
-  // Local File Database Fallback
+  // Local File Database Fallback (only when Supabase is NOT configured)
   const db = await localReadDb();
   db[room.id.toUpperCase()] = {
     ...room,
@@ -448,8 +450,8 @@ export async function cleanInactiveRooms(): Promise<void> {
       // Supabase handled via triggers/pg_cron in prod
       return;
     } catch (e) {
-      console.warn('⚠️ Supabase cleanInactiveRooms failed, falling back to local file DB:', e);
-      isSupabaseHealthy = false;
+      console.error('Supabase cleanInactiveRooms failed:', e);
+      return;
     }
   }
 

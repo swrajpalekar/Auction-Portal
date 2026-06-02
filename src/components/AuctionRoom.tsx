@@ -12,7 +12,7 @@ import { ServerRoom } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { playBidSound, playCountdownSound, playSoldSound } from '@/lib/sounds';
 
-const BID_TIMER_SECONDS = 60;
+const BID_TIMER_SECONDS = 30;
 
 interface AuctionRoomProps {
   roomId: string;
@@ -599,6 +599,16 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
   const hasPassed = !!roomState.passedBy?.includes(teamId);
   const isHighBidder = roomState.currentBidder === teamId;
 
+  // Effective budget left — subtracts a participant's standing bid so their
+  // available budget visibly drops the moment they become the highest bidder
+  // (the actual `spent` only updates once the player is sold).
+  const availLeft = (p: { id: string; budget: number; spent: number }) => {
+    const pending = (roomState.currentBidder === p.id && (roomState.phase === 'bidding' || roomState.phase === 'sold'))
+      ? roomState.currentBid
+      : 0;
+    return p.budget - p.spent - pending;
+  };
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
       {/* Top nav + tabs */}
@@ -648,14 +658,14 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t2)', alignItems: 'center' }}>
                     <span>
-                      <strong style={{ color: 'var(--t1)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 1 }}>₹{p.budget - p.spent}L</strong> left
+                      <strong style={{ color: isBidder ? p.color : 'var(--t1)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 1 }}>₹{availLeft(p)}L</strong> left
                     </span>
                     <span>
                       <strong style={{ color: 'var(--t1)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 1 }}>{p.squad.length}</strong>/{roomState.squadSize}
                     </span>
                   </div>
                   <div style={{ marginTop: 5, height: 3, background: 'var(--bd2)', borderRadius: 2 }}>
-                    <div style={{ height: '100%', width: `${(p.spent / p.budget) * 100}%`, background: p.color, borderRadius: 2, transition: 'width .4s' }} />
+                    <div style={{ height: '100%', width: `${((p.budget - availLeft(p)) / p.budget) * 100}%`, background: p.color, borderRadius: 2, transition: 'width .4s' }} />
                   </div>
                 </div>
               );
@@ -735,32 +745,22 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
-                    {[10, 25, 50, 100, 200].map((inc) => (
-                      <button key={inc} className="btn bs"
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 9 }}>
+                    {[10, 20].map((inc) => (
+                      <button key={inc} className="btn bp"
                         onClick={() => handleBid(inc)}
                         disabled={roomState.phase !== 'bidding' || roomState.currentBidder === teamId || hasPassed || submitting || (me && me.spent + roomState.currentBid + inc > me.budget)}
                         style={{
                           flex: 1,
-                          minWidth: 64,
-                          padding: '16px 6px',
-                          fontSize: 21,
+                          padding: '18px 6px',
+                          fontSize: 24,
                           fontFamily: "'Bebas Neue', sans-serif",
                           letterSpacing: 1.5,
                           borderWidth: 2,
-                          borderColor: 'var(--bd2)'
                         }}>
                         +₹{inc}L
                       </button>
                     ))}
-                  </div>
-                  <div style={{ display: 'flex', gap: 7 }}>
-                    <input className="inp" type="number" placeholder="Custom increment" value={customBid} onChange={(e) => setCustomBid(e.target.value)} style={{ flex: 1, height: 46, fontSize: 14 }} />
-                    <button className="btn bp" disabled={roomState.phase !== 'bidding' || !customBid || hasPassed || submitting}
-                      onClick={() => { const v = parseInt(customBid); if (v > 0) { handleBid(v); setCustomBid(''); } }}
-                      style={{ height: 46, padding: '0 24px', fontSize: 15 }}>
-                      Bid!
-                    </button>
                   </div>
 
                   {/* Pass — opt out of the current player */}
@@ -815,8 +815,8 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
                     <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--t2)', fontSize: 11, alignItems: 'center', background: 'var(--bg3)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--bd2)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)', marginBottom: 2 }}>Budget Left</span>
-                          <span><strong style={{ color: 'var(--g)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1 }}>₹{me.budget - me.spent}L</strong></span>
+                          <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)', marginBottom: 2 }}>Budget Left{isHighBidder ? ' (incl. bid)' : ''}</span>
+                          <span><strong style={{ color: 'var(--g)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 1 }}>₹{availLeft(me)}L</strong></span>
                         </div>
                         <div style={{ width: 1, height: 30, background: 'var(--bd2)' }} />
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>

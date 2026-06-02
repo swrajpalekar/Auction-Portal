@@ -53,7 +53,7 @@ if (notes.length) { console.log('\n⚠️  URL notes:'); notes.forEach(n => cons
 // --- expected schema (from supabase_schema.sql) ---
 const expected = {
   users: ['id','email','name','avatar_url','created_at'],
-  rooms: ['id','name','sport','tournament','budget','squad_size','enable_bots','phase','host_id','player_idx','current_bid','current_bidder','ends_at','scheduled_at','created_at','updated_at'],
+  rooms: ['id','name','sport','tournament','budget','squad_size','enable_bots','phase','host_id','player_idx','current_bid','current_bidder','ends_at','scheduled_at','passed_by','created_at','updated_at'],
   teams: ['id','room_id','owner_id','name','color','photo','budget','spent','created_at'],
   players: ['id','room_id','name','country','role','tier','base_price','sold_price','status','team_id','image','nat','bio','created_at'],
   bids: ['id','room_id','player_id','team_id','amount','created_at'],

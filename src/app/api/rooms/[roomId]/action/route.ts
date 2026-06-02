@@ -2,8 +2,8 @@
 import { NextResponse } from 'next/server';
 import { getRoom, saveRoom } from '@/lib/db';
 
-const BID_TIMER_MS = 60000;
-const BID_EXTENSION_MS = 20000;
+const BID_TIMER_MS = 30000; // base round timer (30s) and the hard cap after a bid
+const BID_EXTENSION_MS = 20000; // a bid adds 20s, but never beyond BID_TIMER_MS from now
 
 export async function POST(
   req: Request,
