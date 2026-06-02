@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
 import { readDb, saveRoom, ServerRoom, getDeterministicUuid } from '@/lib/db';
 
 export async function POST(req: Request) {

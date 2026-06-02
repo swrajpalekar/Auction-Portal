@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
 import { getRoom, saveRoom, cleanInactiveRooms, ServerRoom } from '@/lib/db';
 import { Player } from '@/lib/types';
 
