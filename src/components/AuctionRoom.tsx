@@ -39,6 +39,7 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
   const [selTeam, setSelTeam] = useState(teamId);
   const [timeLeft, setTimeLeft] = useState(BID_TIMER_SECONDS);
   const [submitting, setSubmitting] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const [splitPct, setSplitPct] = useState(42); // percentage for bid history height
@@ -114,9 +115,15 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
     async function fetchState() {
       try {
         const res = await fetch(`/api/rooms/${roomId}?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.status === 404) {
+          // Room genuinely doesn't exist (e.g. an old/expired code) — show a clear
+          // message instead of spinning forever or hammering a 500 loop.
+          if (active) setNotFound(true);
+          return;
+        }
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        if (active) setRoomState(data.room);
+        if (active) { setNotFound(false); setRoomState(data.room); }
       } catch (err) {
         console.error('Error fetching room state:', err);
       }
@@ -423,6 +430,18 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
     } catch (err) {
       console.error('Failed to send chat message:', err);
     }
+  }
+
+  if (notFound) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 24, textAlign: 'center' }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 3, color: 'var(--t3)' }}>ROOM NOT FOUND</div>
+        <div style={{ fontFamily: "'Rajdhani', sans-serif", color: 'var(--t2)', fontSize: 15, maxWidth: 420, lineHeight: 1.6 }}>
+          Room <strong style={{ color: 'var(--t1)' }}>{roomId}</strong> doesn&apos;t exist or has expired. Ask the host for a current invite code, or create a new room.
+        </div>
+        <button className="btn bp" onClick={onLeave} style={{ marginTop: 6 }}>Back to Home</button>
+      </div>
+    );
   }
 
   if (!roomState) {

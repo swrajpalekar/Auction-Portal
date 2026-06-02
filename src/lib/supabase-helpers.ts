@@ -30,7 +30,10 @@ export async function getRoom(roomId: string) {
  */
 export async function getFullRoomState(roomId: string) {
   const [roomReq, teamsReq, playersReq, bidsReq, chatReq] = await Promise.all([
-    (supabase as any).from('rooms').select('*').eq('id', roomId).single(),
+    // maybeSingle (not single): a missing room returns { data: null } instead of
+    // erroring with "Cannot coerce the result to a single JSON object", so an
+    // unknown/stale room code resolves to a clean 404 rather than a 500 loop.
+    (supabase as any).from('rooms').select('*').eq('id', roomId).maybeSingle(),
     (supabase as any).from('teams').select('*').eq('room_id', roomId),
     (supabase as any).from('players').select('*').eq('room_id', roomId).order('id', { ascending: true }),
     (supabase as any).from('bids').select('*').eq('room_id', roomId).order('created_at', { ascending: true }),
