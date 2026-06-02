@@ -169,3 +169,4 @@ export async function cleanInactiveRooms(): Promise<void> {
   }
 }
 
+// vercel ready 
