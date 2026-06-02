@@ -357,7 +357,8 @@ export async function saveRoom(room: ServerRoom): Promise<void> {
             status = 'current';
           }
 
-          const dbPlayerId = getDeterministicUuid(`${room.id}-player-${p.id}`);
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(p.id));
+          const dbPlayerId = isUuid ? String(p.id) : getDeterministicUuid(`${room.id}-player-${p.id}`);
 
           return {
             id: dbPlayerId,

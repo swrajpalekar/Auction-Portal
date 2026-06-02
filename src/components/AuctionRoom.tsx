@@ -185,7 +185,17 @@ export default function AuctionRoom({ roomId, userId, teamId, userName, onLeave 
         // When timer hits 0, ping server once to process phase transition (sold/unsold/next)
         if (left === 0 && !transitionRef.current && (roomState.phase === 'bidding' || roomState.phase === 'sold' || roomState.phase === 'unsold')) {
           transitionRef.current = true;
-          fetch(`/api/rooms/${roomState.id}?t=${Date.now()}`, { cache: 'no-store' });
+          fetch(`/api/rooms/${roomState.id}?t=${Date.now()}`, { cache: 'no-store' })
+            .then(res => res.json())
+            .then(data => {
+              // If server hasn't transitioned yet (clock skew), reset ref to try again
+              if (data.room && data.room.phase === roomState.phase) {
+                setTimeout(() => { transitionRef.current = false; }, 500);
+              }
+            })
+            .catch(() => {
+              setTimeout(() => { transitionRef.current = false; }, 1000);
+            });
         }
       }
     }, 100);
